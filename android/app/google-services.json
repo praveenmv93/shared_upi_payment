@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "941188217753",
+    "project_id": "splitify-1926b",
+    "storage_bucket": "splitify-1926b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:941188217753:android:93663f776ce061e75d3108",
+        "android_client_info": {
+          "package_name": "com.splitify.splitify"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCf6UNIfiTBE-uh4UI55msyQC6jnIRWbBc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
