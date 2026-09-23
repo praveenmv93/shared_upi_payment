@@ -104,10 +104,16 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     }
 
       // Find the installed UPI app that matches the selected name
-      final upiApp = _installedApps?.firstWhere(
-        (app) => app.name.toLowerCase() == appName.toLowerCase(),
-        orElse: () => _installedApps?.isNotEmpty == true ? _installedApps!.first : null,
-      );
+      UpiApp? upiApp;
+      if (_installedApps != null) {
+        try {
+          upiApp = _installedApps!.firstWhere(
+            (app) => app.name.toLowerCase() == appName.toLowerCase(),
+          );
+        } catch (_) {
+          upiApp = _installedApps!.isNotEmpty ? _installedApps!.first : null;
+        }
+      }
 
       if (upiApp == null) {
         Navigator.pop(context);
