@@ -20,8 +20,8 @@ dependencies:
   cloud_firestore: ^5.0.0
   intl: ^0.18.0
   shared_upi_payment:
-    path: /var/personal/shared_upi_payment
-
+    git:
+      url: https://github.com/praveenmv93/shared_upi_payment.git
 dev_dependencies:
   flutter_test:
     sdk: flutter
