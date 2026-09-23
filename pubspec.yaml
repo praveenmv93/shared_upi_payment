@@ -18,8 +18,9 @@ dependencies:
   firebase_core: ^3.0.0
   firebase_auth: ^5.0.0
   cloud_firestore: ^5.0.0
-  upi_india: ^3.0.1
   intl: ^0.18.0
+  shared_upi_payment:
+    path: /var/personal/shared_upi_payment
 
 dev_dependencies:
   flutter_test:
@@ -28,3 +29,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+

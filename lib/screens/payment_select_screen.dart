@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:upi_india/upi_india.dart';
+import 'package:shared_upi_payment/shared_upi_payment.dart';
 import 'package:intl/intl.dart';
 import '../theme.dart';
 
@@ -47,16 +47,8 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
   late double _amount;
   late TextEditingController _amountController;
   bool _isOfflineMode = false;
-  final UpiIndia _upiIndia = UpiIndia();
+  final UpiPaymentService _upiService = MethodChannelUpiService();
   List<UpiApp>? _installedApps;
-
-  final List<Map<String, String>> _upiApps = [
-    {'name': 'PhonePe', 'logo': '💜', 'scheme': 'phonepe://pay', 'color': '0xFF5F259F'},
-    {'name': 'Google Pay', 'logo': '⚡', 'scheme': 'gpay://upi/pay', 'color': '0xFF1A73E8'},
-    {'name': 'Paytm', 'logo': '💙', 'scheme': 'paytmmp://cash_wallet', 'color': '0xFF00B9F5'},
-    {'name': 'CRED Pay', 'logo': '🖤', 'scheme': 'cred://pay', 'color': '0xFF0F0F0F'},
-    {'name': 'BHIM UPI', 'logo': '🇮🇳', 'scheme': 'upi://pay', 'color': '0xFFEC701D'},
-  ];
 
   @override
   void initState() {
@@ -64,7 +56,7 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     _amount = widget.amount;
     _amountController = TextEditingController(text: _amount.toStringAsFixed(2));
     // Load installed UPI apps
-    _upiIndia.getAllUpiApps().then((apps) {
+    _upiService.getInstalledApps().then((apps) {
       setState(() {
         _installedApps = apps;
       });
@@ -77,8 +69,22 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     super.dispose();
   }
 
-  /// Build a UPI URI with the current amount (fallback if needed)
+  /// Build a UPI URI with the current amount
   String _buildUpiLink() {
+    if (widget.upiLink.isNotEmpty) {
+      final uri = Uri.tryParse(widget.upiLink);
+      if (uri != null && uri.scheme == 'upi') {
+        final Map<String, String> params = Map<String, String>.from(uri.queryParameters);
+        params['am'] = _amount.toStringAsFixed(2);
+        if (!params.containsKey('tr')) {
+          params['tr'] = 'splityfy-${DateTime.now().millisecondsSinceEpoch}';
+        }
+        params['tn'] = 'Split payment for ${widget.groupName}';
+        return uri.replace(queryParameters: params).toString();
+      }
+    }
+
+    // Fallback if no valid UPI link was provided
     final uri = Uri(
       scheme: 'upi',
       path: '//pay',
@@ -94,34 +100,14 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     return uri.toString();
   }
 
-  /// Launch selected UPI app using upi_india plugin
-  Future<void> _handlePaymentAppLaunch(String appName, String scheme) async {
+  /// Launch selected UPI app using shared_upi_payment plugin
+  Future<void> _handlePaymentAppLaunch(UpiApp upiApp) async {
     if (_amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Please enter a valid amount.'), backgroundColor: AppTheme.accentOrange),
       );
       return;
     }
-
-      // Find the installed UPI app that matches the selected name
-      UpiApp? upiApp;
-      if (_installedApps != null) {
-        try {
-          upiApp = _installedApps!.firstWhere(
-            (app) => app.name.toLowerCase() == appName.toLowerCase(),
-          );
-        } catch (_) {
-          upiApp = _installedApps!.isNotEmpty ? _installedApps!.first : null;
-        }
-      }
-
-      if (upiApp == null) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('No UPI app available.'), backgroundColor: AppTheme.accentOrange),
-        );
-        return;
-      }
 
     // Show loading spinner
     showDialog(
@@ -131,24 +117,32 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     );
 
     try {
-      final response = await _upiIndia.startTransaction(
+      final builtUri = Uri.parse(_buildUpiLink());
+      final queryParams = builtUri.queryParameters;
+      final request = UpiPaymentRequest(
+        upiUri: builtUri.toString(),
         app: upiApp,
-        receiverUpiId: 'nikithakgigi@oksbi',
-        receiverName: 'Nikitha K Gigi',
-        transactionRefId: 'splityfy-${DateTime.now().millisecondsSinceEpoch}',
-        transactionNote: 'Split payment for ${widget.groupName}',
         amount: _amount,
+        merchantName: queryParams['pn'] ?? widget.title,
+        merchantUpiId: queryParams['pa'] ?? 'unknown@upi',
+        note: queryParams['tn'] ?? 'Split payment for ${widget.groupName}',
+        transactionRef: queryParams['tr'] ?? 'splityfy-${DateTime.now().millisecondsSinceEpoch}',
+      );
+      final response = await _upiService.initiatePayment(
+        request: request,
+        app: upiApp,
       );
       Navigator.pop(context); // dismiss loader
 
-      final status = response.status?.toUpperCase() ?? 'UNKNOWN';
-      final errorMsg = response.responseCode ?? 'No details';
+      final status = response.status.name.toUpperCase();
+      final errorMsg = response.errorMessage ?? response.responseCode ?? 'No details';
+      final isSuccess = response.status == PaymentStatus.success;
       final result = PaymentResult(
         recipientName: 'Nikitha K Gigi',
         recipientEmail: 'nikithakgigi@oksbi',
         amount: _amount,
-        success: status == 'SUCCESS',
-        errorMessage: status == 'SUCCESS' ? null : errorMsg,
+        success: isSuccess,
+        errorMessage: isSuccess ? null : errorMsg,
         timestamp: DateTime.now(),
       );
       _showResultDialog(result);
@@ -315,24 +309,25 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 14, mainAxisSpacing: 14, childAspectRatio: 1.6),
-                itemCount: _upiApps.length,
+                itemCount: _installedApps?.length ?? 0,
                 itemBuilder: (context, index) {
-                  final app = _upiApps[index];
-                  final colorVal = int.parse(app['color']!);
-                  final isDefault = app['name'] == 'Google Pay';
+                  final app = _installedApps![index];
                   return InkWell(
-                    onTap: () => _handlePaymentAppLaunch(app['name']!, app['scheme']!),
+                    onTap: () => _handlePaymentAppLaunch(app),
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isDefault ? Color(colorVal).withOpacity(0.25) : Color(colorVal).withOpacity(0.12),
+                        color: AppTheme.primary.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Color(colorVal).withOpacity(0.4), width: 1.5),
+                        border: Border.all(color: AppTheme.primary.withOpacity(0.4), width: 1.5),
                       ),
                       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Text(app['logo']!, style: const TextStyle(fontSize: 28)),
+                        if (app.iconBytes != null)
+                          Image.memory(app.iconBytes!, width: 32, height: 32)
+                        else
+                          const Icon(Icons.account_balance_wallet_rounded, size: 32, color: AppTheme.primary),
                         const SizedBox(height: 8),
-                        Text(app['name']!, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppTheme.textWhite, fontSize: 14)),
+                        Text(app.appName, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: AppTheme.textWhite, fontSize: 14)),
                       ]),
                     ),
                   );

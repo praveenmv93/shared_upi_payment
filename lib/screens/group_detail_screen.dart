@@ -256,8 +256,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 
   Widget _buildExpensesTab(BuildContext context, Group group) {
-    final activeExpenses = group.expenses.where((e) => !e.isPending).toList();
-    if (activeExpenses.isEmpty) {
+    final displayExpenses = group.expenses.toList()
+      ..sort((a, b) {
+        if (a.isPending && !b.isPending) return -1;
+        if (!a.isPending && b.isPending) return 1;
+        return b.date.compareTo(a.date);
+      });
+    if (displayExpenses.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -277,9 +282,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-      itemCount: activeExpenses.length,
+      itemCount: displayExpenses.length,
       itemBuilder: (context, index) {
-        final exp = activeExpenses[index];
+        final exp = displayExpenses[index];
         final state = AppStateScope.of(context);
         final currentUserId = state.currentUser?.id ?? 'user_default';
         final isUser = exp.paidBy.id == currentUserId;
@@ -409,11 +414,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
                               fontSize: 15)),
-                      Text(isUser ? 'you lent' : 'you owe',
-                          style: GoogleFonts.plusJakartaSans(
-                              color: isUser ? AppTheme.accentGreen : AppTheme.accentPink,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600)),
+                      if (exp.isPending)
+                        Text('Needs Split',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: AppTheme.accentOrange,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700))
+                      else
+                        Text(isUser ? 'you lent' : 'you owe',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: isUser ? AppTheme.accentGreen : AppTheme.accentPink,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600)),
                     ],
                   ),
                   if (canEdit) ...[

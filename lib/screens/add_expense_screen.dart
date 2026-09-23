@@ -186,6 +186,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         amount: amount,
         splits: filteredSplits,
         category: _selectedCategory,
+        isPending: false,
       );
       state.updateExpense(widget.group.id, updatedExpense);
       state.addNotification(
