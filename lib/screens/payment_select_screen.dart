@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-<<<<<<< HEAD
 import 'package:shared_upi_payment/shared_upi_payment.dart';
-=======
->>>>>>> origin/master
 import 'package:intl/intl.dart';
 import '../theme.dart';
 
@@ -50,67 +47,19 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
   late double _amount;
   late TextEditingController _amountController;
   bool _isOfflineMode = false;
-<<<<<<< HEAD
   final UpiPaymentService _upiService = MethodChannelUpiService();
   List<UpiApp>? _installedApps;
-
-=======
-
-  /// Each entry must have: name, logo emoji, package (Android package name), color
-  final List<Map<String, String>> _upiApps = [
-    {
-      'name': 'PhonePe',
-      'logo': '💜',
-      'package': 'com.phonepe.app',
-      'color': '0xFF5F259F',
-    },
-    {
-      'name': 'Google Pay',
-      'logo': '🟢',
-      'package': 'com.google.android.apps.nbu.paisa.user',
-      'color': '0xFF1A73E8',
-    },
-    {
-      'name': 'Paytm',
-      'logo': '💙',
-      'package': 'net.one97.paytm',
-      'color': '0xFF00B9F5',
-    },
-    {
-      'name': 'CRED Pay',
-      'logo': '🖤',
-      'package': 'com.dreamplug.androidapp',
-      'color': '0xFF1A1A2E',
-    },
-    {
-      'name': 'Amazon Pay',
-      'logo': '🟠',
-      'package': 'com.amazon.mShop.android.shopping',
-      'color': '0xFFFF9900',
-    },
-    {
-      'name': 'BHIM UPI',
-      'logo': '🇮🇳',
-      'package': 'in.org.npci.upiapp',
-      'color': '0xFFEC701D',
-    },
-  ];
-
->>>>>>> origin/master
   @override
   void initState() {
     super.initState();
     _amount = widget.amount;
     _amountController = TextEditingController(text: _amount.toStringAsFixed(2));
-<<<<<<< HEAD
     // Load installed UPI apps
     _upiService.getInstalledApps().then((apps) {
       setState(() {
         _installedApps = apps;
       });
     });
-=======
->>>>>>> origin/master
   }
 
   @override
@@ -150,14 +99,8 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     return uri.toString();
   }
 
-<<<<<<< HEAD
   /// Launch selected UPI app using shared_upi_payment plugin
   Future<void> _handlePaymentAppLaunch(UpiApp upiApp) async {
-=======
-  /// Launch a specific UPI app by targeting its Android package via the `psp` param.
-  /// Falls back to the generic `upi://pay` URL (which shows the system UPI chooser).
-  Future<void> _handlePaymentAppLaunch(String appName, String packageName) async {
->>>>>>> origin/master
     if (_amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid amount.'), backgroundColor: AppTheme.accentOrange),
@@ -165,7 +108,6 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
       return;
     }
 
-<<<<<<< HEAD
     // Show loading spinner
     showDialog(
       context: context,
@@ -203,54 +145,11 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
         timestamp: DateTime.now(),
       );
       _showResultDialog(result);
-=======
-    // Build a UPI URL with the `psp` parameter to target a specific app
-    final baseParams = {
-      'pa': 'nikithakgigi@oksbi',
-      'pn': 'Nikitha K Gigi',
-      'am': _amount.toStringAsFixed(2),
-      'cu': 'INR',
-      'tr': 'splityfy-${DateTime.now().millisecondsSinceEpoch}',
-      'tn': 'Split payment for ${widget.groupName}',
-    };
-
-    // Targeted URL: add package name hint so Android resolves directly to that app
-    final targetedUrl = Uri(
-      scheme: 'upi',
-      path: '//pay',
-      queryParameters: {...baseParams, 'psp': packageName},
-    );
-
-    // Generic fallback URL (system UPI chooser)
-    final genericUrl = Uri(
-      scheme: 'upi',
-      path: '//pay',
-      queryParameters: baseParams,
-    );
-
-    try {
-      bool launched = false;
-
-      // Try launching the targeted UPI URL
-      if (await canLaunchUrl(targetedUrl)) {
-        await launchUrl(targetedUrl, mode: LaunchMode.externalApplication);
-        launched = true;
-      }
-
-      // Fallback: try generic UPI URL (shows chooser with all installed UPI apps)
-      if (!launched) {
-        if (await canLaunchUrl(genericUrl)) {
-          await launchUrl(genericUrl, mode: LaunchMode.externalApplication);
-        } else {
-          throw Exception('No UPI app found on device');
-        }
-      }
->>>>>>> origin/master
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not open $appName. Make sure it is installed.'),
+            content: Text('Could not open ${upiApp.appName}. Make sure it is installed.'),
             backgroundColor: AppTheme.accentOrange,
           ),
         );
