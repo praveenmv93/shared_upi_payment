@@ -24,6 +24,7 @@ void main() async {
 }
 
 class SplitifyApp extends StatefulWidget {
+  static String? pendingJoinCode;
   const SplitifyApp({Key? key}) : super(key: key);
 
   @override
@@ -37,6 +38,18 @@ class _SplitifyAppState extends State<SplitifyApp> {
   @override
   void initState() {
     super.initState();
+    // Parse URL invite link parameters on app start
+    try {
+      final uri = Uri.base;
+      String? code = uri.queryParameters['join'] ?? uri.queryParameters['code'];
+      if (code == null && uri.fragment.contains('join=')) {
+        final match = RegExp(r'join=([A-Za-z0-9]+)').firstMatch(uri.fragment);
+        if (match != null) code = match.group(1);
+      }
+      if (code != null && code.trim().isNotEmpty) {
+        SplitifyApp.pendingJoinCode = code.trim().toUpperCase();
+      }
+    } catch (_) {}
     // Listen for auth changes and fetch profile
     AuthService().authStateChanges().listen((firebaseUser) async {
       try {
@@ -317,11 +330,92 @@ class MainNavigationShell extends StatefulWidget {
 
 class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
+  bool _checkedPendingJoin = false;
 
   final List<Widget> _screens = [
     const HomeScreen(),
     const AnalyticsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAutoJoinCode();
+    });
+  }
+
+  Future<void> _checkAutoJoinCode() async {
+    if (_checkedPendingJoin) return;
+    _checkedPendingJoin = true;
+
+    final uri = Uri.base;
+    String? joinCode = uri.queryParameters['join'] ?? uri.queryParameters['code'];
+    if (joinCode == null && uri.fragment.contains('join=')) {
+      final match = RegExp(r'join=([A-Za-z0-9]+)').firstMatch(uri.fragment);
+      if (match != null) joinCode = match.group(1);
+    }
+    joinCode ??= SplitifyApp.pendingJoinCode;
+    SplitifyApp.pendingJoinCode = null;
+
+    if (joinCode == null || joinCode.trim().isEmpty) return;
+
+    final code = joinCode.trim().toUpperCase();
+    final state = AppStateScope.of(context);
+    final user = state.currentUser;
+    if (user == null) return;
+
+    // Check if user is already in this group
+    final existing = state.groups.where((g) => g.inviteCode?.toUpperCase() == code).firstOrNull;
+    if (existing != null) {
+      state.selectGroup(existing.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Switched to ${existing.name}! 🎉'),
+            backgroundColor: AppTheme.surfaceElevated,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Try joining via Firestore
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(color: AppTheme.primary),
+        ),
+      );
+
+      final joinedGroup = await FirestoreService().joinGroupByInviteCode(user.id, code);
+      if (mounted) Navigator.pop(context);
+
+      state.addGroup(joinedGroup);
+      state.selectGroup(joinedGroup.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully joined ${joinedGroup.name} via invite link! 🎉'),
+            backgroundColor: AppTheme.accentGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invite link error: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: AppTheme.accentPink,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

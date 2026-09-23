@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
 import '../models/models.dart';
 import 'group_detail_screen.dart';
@@ -834,50 +836,194 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  String _getInviteLink(Group group) {
+    final code = group.inviteCode ?? '';
+    final origin = Uri.base.origin;
+    if (origin.isNotEmpty && origin != 'null' && !origin.contains('localhost')) {
+      return '$origin/?join=$code';
+    }
+    return 'https://splitify-1926b.web.app/?join=$code';
+  }
+
+  Future<void> _shareToWhatsApp(BuildContext context, Group group) async {
+    final code = group.inviteCode ?? '';
+    final link = _getInviteLink(group);
+    final message = Uri.encodeComponent(
+      '🔥 Hey! Join my circle "${group.name}" on Splitify!\n\n👉 Click link to join directly:\n$link\n\n(Or enter Invite Code: $code) 🚀'
+    );
+    final whatsappUrl = Uri.parse('https://wa.me/?text=$message');
+    try {
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(whatsappUrl);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open WhatsApp: $e'), backgroundColor: AppTheme.accentOrange),
+        );
+      }
+    }
+  }
+
   void _showInviteCode(BuildContext context, Group group) {
     final code = group.inviteCode ?? 'N/A';
+    final inviteLink = _getInviteLink(group);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(32),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.share_rounded, color: AppTheme.primary, size: 40),
-            const SizedBox(height: 16),
-            Text('Invite to ${group.name}',
-                style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20)),
-            const SizedBox(height: 10),
-            Text('Share this code with your crew',
-                style: GoogleFonts.plusJakartaSans(
-                    color: AppTheme.textGrey, fontSize: 14)),
-            const SizedBox(height: 24),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.primary.withOpacity(0.4)),
+                color: const Color(0xFF25D366).withOpacity(0.15),
+                shape: BoxShape.circle,
               ),
-              child: Text(
+              child: const Icon(Icons.share_rounded, color: Color(0xFF25D366), size: 36),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Invite to ${group.name}',
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Send a one-click join link to your friends or copy the code.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                color: AppTheme.textGrey,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceElevated,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.borderColor),
+              ),
+              child: SelectableText(
                 code,
                 style: GoogleFonts.plusJakartaSans(
-                  color: Colors.white,
+                  color: AppTheme.accent,
                   fontWeight: FontWeight.w900,
-                  fontSize: 28,
+                  fontSize: 26,
                   letterSpacing: 6,
                 ),
               ),
             ),
             const SizedBox(height: 24),
+
+            // Share on WhatsApp Button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _shareToWhatsApp(context, group);
+                },
+                icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                label: Text(
+                  'SHARE ON WHATSAPP',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Copy One-Click Link Button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: inviteLink));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('One-click join link copied! 🔗',
+                          style: GoogleFonts.plusJakartaSans()),
+                      backgroundColor: AppTheme.accentGreen,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.link_rounded, color: Colors.white, size: 20),
+                label: Text(
+                  'COPY ONE-CLICK LINK',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Copy Code Button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: code));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Invite code $code copied! 📋',
+                          style: GoogleFonts.plusJakartaSans()),
+                      backgroundColor: AppTheme.surfaceElevated,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                label: Text(
+                  'COPY CODE ONLY',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: AppTheme.borderColor, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
           ],
         ),
       ),
