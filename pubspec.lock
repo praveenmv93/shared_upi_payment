@@ -443,9 +443,11 @@ packages:
   shared_upi_payment:
     dependency: "direct main"
     description:
-      path: "/var/personal/shared_upi_payment"
-      relative: false
-    source: path
+      path: "."
+      ref: HEAD
+      resolved-ref: "3797b4dda066470fadc7a018e955b8b2fea61a9e"
+      url: "https://github.com/praveenmv93/shared_upi_payment.git"
+    source: git
     version: "0.0.1"
   sky_engine:
     dependency: transitive
