@@ -8,6 +8,9 @@ import 'payment_select_screen.dart';
 import 'add_expense_screen.dart';
 import '../services/firestore_service.dart';
 import '../theme.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'map_picker_screen.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -635,16 +638,84 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             ),
             child: Column(
               children: [
+                if (group.homeLatitude != 0.0 && group.homeLongitude != 0.0) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: SizedBox(
+                      height: 180,
+                      width: double.infinity,
+                      child: Stack(
+                        children: [
+                          IgnorePointer(
+                            ignoring: true, // Make it view-only
+                            child: FlutterMap(
+                              options: MapOptions(
+                                initialCenter: LatLng(group.homeLatitude, group.homeLongitude),
+                                initialZoom: 15.0,
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  userAgentPackageName: 'com.splitify.app',
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      point: LatLng(group.homeLatitude, group.homeLongitude),
+                                      width: 40,
+                                      height: 40,
+                                      child: const Icon(
+                                        Icons.location_on_rounded,
+                                        size: 40,
+                                        color: AppTheme.accentOrange,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: GestureDetector(
+                              onTap: () => _editLocation(context, group, state),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surfaceElevated.withOpacity(0.9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.edit_location_alt_rounded, color: AppTheme.primaryLight, size: 20),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
                 _buildSettingRow(
                   icon: Icons.calendar_today_rounded,
                   label: 'Billing Cycle',
                   value: '${group.billingDay}${_getDaySuffix(group.billingDay)} of every month',
                 ),
                 Divider(color: AppTheme.borderColor, height: 24),
-                _buildSettingRow(
-                  icon: Icons.home_rounded,
-                  label: 'Home Location',
-                  value: group.homeLocationName,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSettingRow(
+                        icon: Icons.home_rounded,
+                        label: 'Home Location',
+                        value: group.homeLocationName,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, color: AppTheme.textMuted, size: 20),
+                      onPressed: () => _editLocation(context, group, state),
+                    ),
+                  ],
                 ),
                 Divider(color: AppTheme.borderColor, height: 24),
                 Row(
@@ -813,6 +884,47 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
+  void _editLocation(BuildContext context, Group group, AppStateScope state) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MapPickerScreen(
+          initialLatitude: group.homeLatitude,
+          initialLongitude: group.homeLongitude,
+        ),
+      ),
+    );
+
+    if (result != null && result is Map<String, dynamic>) {
+      final lat = result['latitude'] as double;
+      final lng = result['longitude'] as double;
+      final addr = result['address'] as String;
+
+      // Optimistic UI update
+      final updatedGroup = group.copyWith(
+        homeLatitude: lat,
+        homeLongitude: lng,
+        homeLocationName: addr,
+      );
+      state.updateGroup(updatedGroup);
+
+      // Backend update
+      try {
+        await FirestoreService().updateGroupLocation(group.id, lat, lng, addr);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Home location updated!'), backgroundColor: AppTheme.accentGreen),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to update location on server.'), backgroundColor: AppTheme.accentPink),
+          );
+        }
+      }
+    }
+  }
   void _confirmDeleteGroup(BuildContext context, Group group) {
     showDialog(
       context: context,

@@ -22,6 +22,12 @@ dependencies:
   shared_upi_payment:
     git:
       url: https://github.com/praveenmv93/shared_upi_payment.git
+  geolocator: ^14.0.3
+  geocoding: ^5.0.0
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  flutter_launcher_icons: ^0.14.4
+  http: ^1.6.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -29,4 +35,15 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon.png
+    - assets/logo_transparent.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#1E1E1E"
+  adaptive_icon_foreground: "assets/icon.png"
 

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../main.dart';
 import '../models/models.dart';
 import '../services/firestore_service.dart';
 import '../theme.dart';
+import 'map_picker_screen.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({Key? key}) : super(key: key);
@@ -20,6 +23,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _locationNameController = TextEditingController();
   int _billingDay = 1;
   bool _isCreating = false;
+  double _latitude = 12.9716;
+  double _longitude = 77.5946;
 
   final List<Map<String, dynamic>> _emojiOptions = [
     {'emoji': '🏠', 'label': 'Apartment'},
@@ -37,6 +42,44 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     super.dispose();
   }
 
+  Future<void> _pickLocation() async {
+    // If we don't have permission yet, just request it so the map starts roughly near user
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (serviceEnabled) {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        try {
+          Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+        } catch (_) {}
+      }
+    }
+
+    if (!mounted) return;
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MapPickerScreen(
+          initialLatitude: _latitude,
+          initialLongitude: _longitude,
+        ),
+      ),
+    );
+
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        _latitude = result['latitude'];
+        _longitude = result['longitude'];
+        _locationNameController.text = result['address'];
+      });
+    }
+  }
+
   void _createGroup() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isCreating = true);
@@ -52,6 +95,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         homeLocation: _locationNameController.text.isEmpty
             ? 'Home'
             : _locationNameController.text,
+        homeLatitude: _latitude,
+        homeLongitude: _longitude,
         billingDay: _billingDay,
         memberIds: [currentUser.id],
       );
@@ -330,6 +375,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   hintText: 'e.g., 1H Apartment',
                   prefixIcon: Icon(Icons.location_on_rounded,
                       color: AppTheme.accentPink, size: 20),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.map_rounded, color: AppTheme.primary),
+                    onPressed: _pickLocation,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

@@ -15,6 +15,7 @@ import 'screens/qr_scan_screen.dart';
 import 'screens/qr_generate_screen.dart';
 import 'screens/create_group_screen.dart';
 import 'screens/join_group_screen.dart';
+import 'screens/splash_screen.dart';
 
 
 void main() async {
@@ -227,6 +228,15 @@ class _SplitifyAppState extends State<SplitifyApp> {
     });
   }
 
+  void updateGroup(Group updatedGroup) {
+    setState(() {
+      final index = _groups.indexWhere((g) => g.id == updatedGroup.id);
+      if (index != -1) {
+        _groups[index] = updatedGroup;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppStateScope(
@@ -240,6 +250,7 @@ class _SplitifyAppState extends State<SplitifyApp> {
       deleteExpense: deleteExpense,
       addNotification: addNotification,
       addGroup: addGroup,
+      updateGroup: updateGroup,
       selectGroup: selectGroup,
       toggleLocation: toggleLocation,
       updateCurrentUser: updateCurrentUser,
@@ -247,7 +258,7 @@ class _SplitifyAppState extends State<SplitifyApp> {
         title: 'Splitify',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,
-        home: AuthWrapper(),
+        home: const SplashScreen(),
       ),
     );
   }
@@ -283,6 +294,7 @@ class AppStateScope extends InheritedWidget {
   final Function(String, String) deleteExpense;
   final Function(String) addNotification;
   final Function(Group) addGroup;
+  final Function(Group) updateGroup;
   final Function(String?) selectGroup;
   final Function() toggleLocation;
   final Function(UserProfile) updateCurrentUser;
@@ -299,6 +311,7 @@ class AppStateScope extends InheritedWidget {
     required this.deleteExpense,
     required this.addNotification,
     required this.addGroup,
+    required this.updateGroup,
     required this.selectGroup,
     required this.toggleLocation,
     required this.updateCurrentUser,

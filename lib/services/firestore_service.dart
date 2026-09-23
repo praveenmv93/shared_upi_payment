@@ -8,6 +8,7 @@ class FirestoreService {
   static const String _groupsCollection = 'groups';
   static const String _usersCollection = 'users';
   static const String _invitesCollection = 'invites';
+  static const String _transactionsCollection = 'transactions';
 
   // ==================== GROUP OPERATIONS ====================
 
@@ -17,6 +18,8 @@ class FirestoreService {
     required String groupName,
     required String description,
     required String homeLocation,
+    required double homeLatitude,
+    required double homeLongitude,
     required int billingDay,
     required List<String> memberIds, // Includes current user
   }) async {
@@ -29,6 +32,8 @@ class FirestoreService {
         'name': groupName,
         'description': description,
         'homeLocationName': homeLocation,
+        'homeLatitude': homeLatitude,
+        'homeLongitude': homeLongitude,
         'billingDay': billingDay,
         'createdBy': userId,
         'memberIds': memberIds,
@@ -55,9 +60,24 @@ class FirestoreService {
         billingDay: billingDay,
         inviteCode: inviteCode,
         homeLocationName: homeLocation,
+        homeLatitude: homeLatitude,
+        homeLongitude: homeLongitude,
       );
     } catch (e) {
       throw Exception('Error creating group: $e');
+    }
+  }
+
+  /// Update a group's location and save to Firestore
+  Future<void> updateGroupLocation(String groupId, double latitude, double longitude, String locationName) async {
+    try {
+      await _db.collection(_groupsCollection).doc(groupId).update({
+        'homeLatitude': latitude,
+        'homeLongitude': longitude,
+        'homeLocationName': locationName,
+      });
+    } catch (e) {
+      throw Exception('Error updating group location: $e');
     }
   }
 
@@ -300,9 +320,59 @@ class FirestoreService {
         id: data['id'],
         name: data['name'],
         email: data['email'],
+        upiId: data['upiId'] ?? '',
       );
     } catch (e) {
       throw Exception('Error fetching user profile: $e');
+    }
+  }
+
+  // ==================== TRANSACTIONS ====================
+
+  /// Add a new transaction
+  Future<void> addTransaction(TransactionModel transaction) async {
+    try {
+      await _db.collection(_transactionsCollection).doc(transaction.id).set({
+        'id': transaction.id,
+        'userId': transaction.userId,
+        'amount': transaction.amount,
+        'recipientName': transaction.recipientName,
+        'recipientUpiId': transaction.recipientUpiId,
+        'status': transaction.status,
+        'timestamp': Timestamp.fromDate(transaction.timestamp),
+        'groupId': transaction.groupId,
+        'errorMessage': transaction.errorMessage,
+      });
+    } catch (e) {
+      throw Exception('Failed to add transaction: $e');
+    }
+  }
+
+  /// Get transactions for a user
+  Future<List<TransactionModel>> getUserTransactions(String userId) async {
+    try {
+      final snap = await _db.collection(_transactionsCollection)
+          .where('userId', isEqualTo: userId)
+          .orderBy('timestamp', descending: true)
+          .get();
+      
+      return snap.docs.map((doc) {
+        final data = doc.data();
+        return TransactionModel(
+          id: data['id'],
+          userId: data['userId'],
+          amount: (data['amount'] as num).toDouble(),
+          recipientName: data['recipientName'] ?? 'Unknown',
+          recipientUpiId: data['recipientUpiId'] ?? '',
+          status: data['status'] ?? 'UNKNOWN',
+          timestamp: (data['timestamp'] as Timestamp).toDate(),
+          groupId: data['groupId'],
+          errorMessage: data['errorMessage'],
+        );
+      }).toList();
+    } catch (e) {
+      print('Error fetching transactions: $e');
+      return [];
     }
   }
 
@@ -329,7 +399,7 @@ class FirestoreService {
             id: id,
             name: data['name'] ?? id,
             phone: 'N/A',
-            upiId: data['email'] ?? '$id@upi',
+            upiId: data['upiId'] ?? data['email'] ?? '$id@upi',
           ));
         } else {
           members.add(Member(
@@ -364,6 +434,8 @@ class FirestoreService {
       inviteCode: data['inviteCode'],
       createdBy: data['createdBy'],
       homeLocationName: data['homeLocationName'] ?? 'Home',
+      homeLatitude: data['homeLatitude'] != null ? double.parse(data['homeLatitude'].toString()) : 12.9716,
+      homeLongitude: data['homeLongitude'] != null ? double.parse(data['homeLongitude'].toString()) : 77.5946,
     );
   }
 
@@ -388,6 +460,8 @@ class FirestoreService {
       inviteCode: data['inviteCode'],
       createdBy: data['createdBy'],
       homeLocationName: data['homeLocationName'] ?? 'Home',
+      homeLatitude: data['homeLatitude'] != null ? double.parse(data['homeLatitude'].toString()) : 12.9716,
+      homeLongitude: data['homeLongitude'] != null ? double.parse(data['homeLongitude'].toString()) : 77.5946,
     );
   }
 
@@ -399,6 +473,7 @@ class FirestoreService {
       'amount': expense.amount,
       'paidById': expense.paidBy.id,
       'paidByName': expense.paidBy.name,
+      'paidByUpiId': expense.paidBy.upiId,
       'splits': expense.splits,
       'category': expense.category,
       'date': Timestamp.fromDate(expense.date),
@@ -412,6 +487,7 @@ class FirestoreService {
     return expensesList.map((e) {
       final paidById = e['paidById'];
       final paidByName = e['paidByName'] ?? (paidById.startsWith('user_') ? 'Member ${paidById.substring(paidById.length - 4)}' : paidById);
+      final paidByUpiId = e['paidByUpiId'] ?? '$paidById@upi';
       
       return Expense(
           id: e['id'],
@@ -421,7 +497,7 @@ class FirestoreService {
             id: paidById,
             name: paidByName,
             phone: 'N/A',
-            upiId: '$paidById@upi',
+            upiId: paidByUpiId,
           ),
           splits: (e['splits'] as Map<String, dynamic>? ?? {}).map((k, v) => MapEntry(k, (v as num).toDouble())),
           category: e['category'],

@@ -7,6 +7,7 @@ void main() {
       id: '123',
       name: 'Test User',
       email: 'test@example.com',
+      upiId: 'test@upi',
     );
     expect(user.id, '123');
     expect(user.name, 'Test User');

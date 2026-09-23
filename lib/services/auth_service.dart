@@ -18,6 +18,7 @@ class AuthService {
         'id': user.uid,
         'name': displayName,
         'email': email,
+        'upiId': email, // default
         'groupIds': [],
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -47,6 +48,7 @@ class AuthService {
         'id': user.uid,
         'name': defaultName,
         'email': user.email ?? '',
+        'upiId': user.email ?? '', // default
         'groupIds': [],
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -54,6 +56,7 @@ class AuthService {
         id: user.uid,
         name: defaultName,
         email: user.email ?? '',
+        upiId: user.email ?? '',
       );
     }
     var data = snap.data() as Map<String, dynamic>;
@@ -61,6 +64,7 @@ class AuthService {
       id: user.uid,
       name: data['name'] ?? '',
       email: data['email'] ?? '',
+      upiId: data['upiId'] ?? data['email'] ?? '',
     );
   }
 }

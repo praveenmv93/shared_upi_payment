@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../theme.dart';
 import 'payment_select_screen.dart';
+import '../main.dart';
 
 class QRGenerateScreen extends StatefulWidget {
   const QRGenerateScreen({Key? key}) : super(key: key);
@@ -12,19 +13,45 @@ class QRGenerateScreen extends StatefulWidget {
 }
 
 class _QRGenerateScreenState extends State<QRGenerateScreen> {
-  final TextEditingController _paController = TextEditingController(text: 'nikithakgigi@oksbi');
-  final TextEditingController _pnController = TextEditingController(text: 'Nikki');
+  late final TextEditingController _paController;
+  late final TextEditingController _pnController;
   final TextEditingController _tnController = TextEditingController(text: 'Payment');
   final TextEditingController _amController = TextEditingController(text: '0');
 
-  String get _upiLink {
-    final pa = _paController.text.trim();
-    final pn = _pnController.text.trim();
-    final tn = _tnController.text.trim().isEmpty ? 'Payment' : _tnController.text.trim();
-    final am = _amController.text.trim().isEmpty ? '0' : _amController.text.trim();
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = AppStateScope.of(context);
+      setState(() {
+        _paController = TextEditingController(text: state.currentUser?.upiId ?? '');
+        _pnController = TextEditingController(text: state.currentUser?.name ?? '');
+      });
+    });
+  }
 
-    if (pa.isEmpty || pn.isEmpty) return '';
-    return 'upi://pay?pa=$pa&pn=$pn&tn=$tn&am=$am';
+  @override
+  void dispose() {
+    _paController.dispose();
+    _pnController.dispose();
+    _tnController.dispose();
+    _amController.dispose();
+    super.dispose();
+  }
+
+  String get _upiLink {
+    if (!mounted) return '';
+    try {
+      final pa = _paController.text.trim();
+      final pn = _pnController.text.trim();
+      final tn = _tnController.text.trim().isEmpty ? 'Payment' : _tnController.text.trim();
+      final am = _amController.text.trim().isEmpty ? '0' : _amController.text.trim();
+
+      if (pa.isEmpty || pn.isEmpty) return '';
+      return 'upi://pay?pa=$pa&pn=$pn&tn=$tn&am=$am';
+    } catch (_) {
+      return '';
+    }
   }
 
   @override

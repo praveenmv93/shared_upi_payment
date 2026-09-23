@@ -4,6 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_upi_payment/shared_upi_payment.dart';
 import 'package:intl/intl.dart';
 import '../theme.dart';
+import '../main.dart';
+import '../services/firestore_service.dart';
+import '../models/models.dart';
 
 /// Model representing the result of a payment transaction
 class PaymentResult {
@@ -84,12 +87,14 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     }
 
     // Fallback if no valid UPI link was provided
+    final state = AppStateScope.of(context);
+    final user = state.currentUser;
     final uri = Uri(
       scheme: 'upi',
       path: '//pay',
       queryParameters: {
-        'pa': 'nikithakgigi@oksbi',
-        'pn': 'Nikitha K Gigi',
+        'pa': user?.upiId ?? 'test@upi',
+        'pn': user?.name ?? 'Test User',
         'am': _amount.toStringAsFixed(2),
         'cu': 'INR',
         'tr': 'splityfy-${DateTime.now().millisecondsSinceEpoch}',
@@ -136,14 +141,34 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
       final status = response.status.name.toUpperCase();
       final errorMsg = response.errorMessage ?? response.responseCode ?? 'No details';
       final isSuccess = response.status == PaymentStatus.success;
+      final recipientNameStr = queryParams['pn'] ?? widget.title;
+      final recipientUpiIdStr = queryParams['pa'] ?? 'unknown@upi';
       final result = PaymentResult(
-        recipientName: 'Nikitha K Gigi',
-        recipientEmail: 'nikithakgigi@oksbi',
+        recipientName: recipientNameStr,
+        recipientEmail: recipientUpiIdStr,
         amount: _amount,
         success: isSuccess,
         errorMessage: isSuccess ? null : errorMsg,
         timestamp: DateTime.now(),
       );
+
+      // Log transaction
+      final state = AppStateScope.of(context);
+      final userId = state.currentUser?.id;
+      if (userId != null) {
+        final tx = TransactionModel(
+          id: 'tx_${DateTime.now().millisecondsSinceEpoch}',
+          userId: userId,
+          amount: _amount,
+          recipientName: recipientNameStr,
+          recipientUpiId: recipientUpiIdStr,
+          status: isSuccess ? 'SUCCESS' : 'FAILED',
+          timestamp: DateTime.now(),
+          errorMessage: isSuccess ? null : errorMsg,
+        );
+        FirestoreService().addTransaction(tx);
+      }
+
       _showResultDialog(result);
     } catch (e) {
       if (mounted) {

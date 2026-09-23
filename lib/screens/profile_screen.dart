@@ -7,6 +7,7 @@ import '../models/models.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import 'qr_generate_screen.dart';
+import 'transaction_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -17,6 +18,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
+  final _upiIdController = TextEditingController();
   bool _isSaving = false;
 
   @override
@@ -26,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final state = AppStateScope.of(context);
       if (state.currentUser != null) {
         _nameController.text = state.currentUser!.name;
+        _upiIdController.text = state.currentUser!.upiId;
       }
     });
   }
@@ -33,14 +36,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _upiIdController.dispose();
     super.dispose();
   }
 
   void _saveProfile(AppStateScope state) async {
     final newName = _nameController.text.trim();
+    final newUpiId = _upiIdController.text.trim();
     if (newName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Name cannot be empty')),
+      );
+      return;
+    }
+    if (newUpiId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('UPI ID cannot be empty')),
       );
       return;
     }
@@ -54,11 +65,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Update Firestore
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'name': newName,
+        'upiId': newUpiId,
       });
 
       // Update local state
       state.updateCurrentUser(
-        UserProfile(id: uid, name: newName, email: state.currentUser?.email ?? ''),
+        UserProfile(id: uid, name: newName, email: state.currentUser?.email ?? '', upiId: newUpiId),
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -251,6 +263,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
+            // Edit UPI ID TextField
+            Text(
+              'YOUR UPI ID',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                color: AppTheme.textGrey,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _upiIdController,
+              style: GoogleFonts.plusJakartaSans(
+                color: AppTheme.textWhite,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Enter your UPI ID (e.g., name@upi)',
+                hintStyle: GoogleFonts.plusJakartaSans(
+                  color: AppTheme.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
+                filled: true,
+                fillColor: AppTheme.surfaceElevated,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppTheme.borderColor, width: 1.5),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // Email Display (Read-Only)
             Text(
               'EMAIL ADDRESS',
@@ -302,6 +353,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppTheme.primary,
                   side: const BorderSide(color: AppTheme.primary, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // View Transaction History Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TransactionHistoryScreen()),
+                ),
+                icon: const Icon(Icons.history_rounded, size: 20),
+                label: Text(
+                  'Transaction History',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.accentGreen,
+                  side: const BorderSide(color: AppTheme.accentGreen, width: 1.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
               ),

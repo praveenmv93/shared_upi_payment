@@ -143,6 +143,36 @@ class UserProfile {
   final String id;
   final String name;
   final String email;
+  final String upiId;
 
-  UserProfile({required this.id, required this.name, required this.email});
+  UserProfile({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.upiId,
+  });
+}
+
+class TransactionModel {
+  final String id;
+  final String userId;
+  final double amount;
+  final String recipientName;
+  final String recipientUpiId;
+  final String status;
+  final DateTime timestamp;
+  final String? groupId;
+  final String? errorMessage;
+
+  TransactionModel({
+    required this.id,
+    required this.userId,
+    required this.amount,
+    required this.recipientName,
+    required this.recipientUpiId,
+    required this.status,
+    required this.timestamp,
+    this.groupId,
+    this.errorMessage,
+  });
 }
