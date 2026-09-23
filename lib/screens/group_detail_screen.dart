@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
 import '../models/models.dart';
 import 'payment_select_screen.dart';
@@ -658,14 +659,44 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_rounded, color: AppTheme.accent, size: 20),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: group.inviteCode ?? ''));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Invite code copied to clipboard! 📋')),
-                        );
-                      },
+                    Row(
+                      children: [
+                        IconButton(
+                          tooltip: 'Share on WhatsApp',
+                          icon: const Icon(Icons.send_rounded, color: Color(0xFF25D366), size: 20),
+                          onPressed: () async {
+                            final code = group.inviteCode ?? '';
+                            final link = 'https://splitify-1926b.web.app/?join=$code';
+                            final msg = Uri.encodeComponent(
+                              '🔥 Join my circle "${group.name}" on Splitify!\n\n👉 Click link to join directly:\n$link\n\n(Or enter Invite Code: $code) 🚀'
+                            );
+                            final url = Uri.parse('https://wa.me/?text=$msg');
+                            try {
+                              if (await canLaunchUrl(url)) {
+                                await launchUrl(url, mode: LaunchMode.externalApplication);
+                              } else {
+                                await launchUrl(url);
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error launching WhatsApp: $e')),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                        IconButton(
+                          tooltip: 'Copy Code',
+                          icon: const Icon(Icons.copy_rounded, color: AppTheme.accent, size: 20),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: group.inviteCode ?? ''));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Invite code copied to clipboard! 📋')),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),

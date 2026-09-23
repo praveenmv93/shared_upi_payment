@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:upi_india/upi_india.dart';
 import 'package:intl/intl.dart';
 import '../theme.dart';
 
@@ -47,15 +46,45 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
   late double _amount;
   late TextEditingController _amountController;
   bool _isOfflineMode = false;
-  final UpiIndia _upiIndia = UpiIndia();
-  List<UpiApp>? _installedApps;
 
+  /// Each entry must have: name, logo emoji, package (Android package name), color
   final List<Map<String, String>> _upiApps = [
-    {'name': 'PhonePe', 'logo': '💜', 'scheme': 'phonepe://pay', 'color': '0xFF5F259F'},
-    {'name': 'Google Pay', 'logo': '⚡', 'scheme': 'gpay://upi/pay', 'color': '0xFF1A73E8'},
-    {'name': 'Paytm', 'logo': '💙', 'scheme': 'paytmmp://cash_wallet', 'color': '0xFF00B9F5'},
-    {'name': 'CRED Pay', 'logo': '🖤', 'scheme': 'cred://pay', 'color': '0xFF0F0F0F'},
-    {'name': 'BHIM UPI', 'logo': '🇮🇳', 'scheme': 'upi://pay', 'color': '0xFFEC701D'},
+    {
+      'name': 'PhonePe',
+      'logo': '💜',
+      'package': 'com.phonepe.app',
+      'color': '0xFF5F259F',
+    },
+    {
+      'name': 'Google Pay',
+      'logo': '🟢',
+      'package': 'com.google.android.apps.nbu.paisa.user',
+      'color': '0xFF1A73E8',
+    },
+    {
+      'name': 'Paytm',
+      'logo': '💙',
+      'package': 'net.one97.paytm',
+      'color': '0xFF00B9F5',
+    },
+    {
+      'name': 'CRED Pay',
+      'logo': '🖤',
+      'package': 'com.dreamplug.androidapp',
+      'color': '0xFF1A1A2E',
+    },
+    {
+      'name': 'Amazon Pay',
+      'logo': '🟠',
+      'package': 'com.amazon.mShop.android.shopping',
+      'color': '0xFFFF9900',
+    },
+    {
+      'name': 'BHIM UPI',
+      'logo': '🇮🇳',
+      'package': 'in.org.npci.upiapp',
+      'color': '0xFFEC701D',
+    },
   ];
 
   @override
@@ -63,12 +92,6 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     super.initState();
     _amount = widget.amount;
     _amountController = TextEditingController(text: _amount.toStringAsFixed(2));
-    // Load installed UPI apps
-    _upiIndia.getAllUpiApps().then((apps) {
-      setState(() {
-        _installedApps = apps;
-      });
-    });
   }
 
   @override
@@ -77,7 +100,7 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     super.dispose();
   }
 
-  /// Build a UPI URI with the current amount (fallback if needed)
+  /// Build a UPI URI with the current amount
   String _buildUpiLink() {
     final uri = Uri(
       scheme: 'upi',
@@ -94,69 +117,66 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
     return uri.toString();
   }
 
-  /// Launch selected UPI app using upi_india plugin
-  Future<void> _handlePaymentAppLaunch(String appName, String scheme) async {
+  /// Launch a specific UPI app by targeting its Android package via the `psp` param.
+  /// Falls back to the generic `upi://pay` URL (which shows the system UPI chooser).
+  Future<void> _handlePaymentAppLaunch(String appName, String packageName) async {
     if (_amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Please enter a valid amount.'), backgroundColor: AppTheme.accentOrange),
+        const SnackBar(content: Text('Please enter a valid amount.'), backgroundColor: AppTheme.accentOrange),
       );
       return;
     }
 
-      // Find the installed UPI app that matches the selected name
-      final upiApp = _installedApps?.firstWhere(
-        (app) => app.name.toLowerCase() == appName.toLowerCase(),
-        orElse: () => _installedApps?.isNotEmpty == true ? _installedApps!.first : null,
-      );
+    // Build a UPI URL with the `psp` parameter to target a specific app
+    final baseParams = {
+      'pa': 'nikithakgigi@oksbi',
+      'pn': 'Nikitha K Gigi',
+      'am': _amount.toStringAsFixed(2),
+      'cu': 'INR',
+      'tr': 'splityfy-${DateTime.now().millisecondsSinceEpoch}',
+      'tn': 'Split payment for ${widget.groupName}',
+    };
 
-      if (upiApp == null) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('No UPI app available.'), backgroundColor: AppTheme.accentOrange),
-        );
-        return;
-      }
+    // Targeted URL: add package name hint so Android resolves directly to that app
+    final targetedUrl = Uri(
+      scheme: 'upi',
+      path: '//pay',
+      queryParameters: {...baseParams, 'psp': packageName},
+    );
 
-    // Show loading spinner
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+    // Generic fallback URL (system UPI chooser)
+    final genericUrl = Uri(
+      scheme: 'upi',
+      path: '//pay',
+      queryParameters: baseParams,
     );
 
     try {
-      final response = await _upiIndia.startTransaction(
-        app: upiApp,
-        receiverUpiId: 'nikithakgigi@oksbi',
-        receiverName: 'Nikitha K Gigi',
-        transactionRefId: 'splityfy-${DateTime.now().millisecondsSinceEpoch}',
-        transactionNote: 'Split payment for ${widget.groupName}',
-        amount: _amount,
-      );
-      Navigator.pop(context); // dismiss loader
+      bool launched = false;
 
-      final status = response.status?.toUpperCase() ?? 'UNKNOWN';
-      final errorMsg = response.responseCode ?? 'No details';
-      final result = PaymentResult(
-        recipientName: 'Nikitha K Gigi',
-        recipientEmail: 'nikithakgigi@oksbi',
-        amount: _amount,
-        success: status == 'SUCCESS',
-        errorMessage: status == 'SUCCESS' ? null : errorMsg,
-        timestamp: DateTime.now(),
-      );
-      _showResultDialog(result);
+      // Try launching the targeted UPI URL
+      if (await canLaunchUrl(targetedUrl)) {
+        await launchUrl(targetedUrl, mode: LaunchMode.externalApplication);
+        launched = true;
+      }
+
+      // Fallback: try generic UPI URL (shows chooser with all installed UPI apps)
+      if (!launched) {
+        if (await canLaunchUrl(genericUrl)) {
+          await launchUrl(genericUrl, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('No UPI app found on device');
+        }
+      }
     } catch (e) {
-      Navigator.pop(context);
-      final result = PaymentResult(
-        recipientName: 'Nikitha K Gigi',
-        recipientEmail: 'nikithakgigi@oksbi',
-        amount: _amount,
-        success: false,
-        errorMessage: e.toString(),
-        timestamp: DateTime.now(),
-      );
-      _showResultDialog(result);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open $appName. Make sure it is installed.'),
+            backgroundColor: AppTheme.accentOrange,
+          ),
+        );
+      }
     }
   }
 
@@ -313,13 +333,12 @@ class _PaymentSelectScreenState extends State<PaymentSelectScreen> {
                 itemBuilder: (context, index) {
                   final app = _upiApps[index];
                   final colorVal = int.parse(app['color']!);
-                  final isDefault = app['name'] == 'Google Pay';
                   return InkWell(
-                    onTap: () => _handlePaymentAppLaunch(app['name']!, app['scheme']!),
+                    onTap: () => _handlePaymentAppLaunch(app['name']!, app['package']!),
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isDefault ? Color(colorVal).withOpacity(0.25) : Color(colorVal).withOpacity(0.12),
+                        color: Color(colorVal).withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Color(colorVal).withOpacity(0.4), width: 1.5),
                       ),

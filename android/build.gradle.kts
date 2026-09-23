@@ -1,7 +1,10 @@
+fun RepositoryHandler.jcenter() = mavenCentral()
+
 allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jcenter.bintray.com") }
     }
 }
 
