@@ -8,9 +8,11 @@ import 'payment_select_screen.dart';
 import 'add_expense_screen.dart';
 import '../services/firestore_service.dart';
 import '../theme.dart';
+import '../services/geofence_service.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'map_picker_screen.dart';
+import 'radar_screen.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -49,7 +51,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 240,
             pinned: true,
             backgroundColor: AppTheme.backgroundDark,
             leading: GestureDetector(
@@ -655,7 +657,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                               ),
                               children: [
                                 TileLayer(
-                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                                  subdomains: const ['a', 'b', 'c', 'd'],
                                   userAgentPackageName: 'com.splitify.app',
                                 ),
                                 MarkerLayer(
@@ -787,8 +790,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 GestureDetector(
                   onTap: () {
                     state.addNotification('🔔 Poke sent to ${group.name}!');
+                    
+                    // Trigger the native push notification
+                    GeofenceService().sendNotification(
+                      title: '🔔 Poke from ${group.name}',
+                      body: 'Someone poked you! Settle your pending expenses.',
+                    );
+                    
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('Poked everyone in ${group.name}! 👋',
+                      content: Text('Poked everyone in ${group.name}! 👋 (Push notification sent)',
                           style: GoogleFonts.plusJakartaSans()),
                       backgroundColor: AppTheme.surfaceElevated,
                     ));
@@ -807,6 +817,36 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       const SizedBox(width: 14),
                       Expanded(
                         child: Text('Poke everyone',
+                            style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white, fontWeight: FontWeight.w600)),
+                      ),
+                      Icon(Icons.chevron_right_rounded,
+                          color: AppTheme.textMuted, size: 18),
+                    ],
+                  ),
+                ),
+                Divider(color: AppTheme.borderColor, height: 24),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RadarScreen()),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.cyanAccent.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.radar_rounded,
+                            color: Colors.cyanAccent, size: 18),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text('Invite via Wi-Fi Radar',
                             style: GoogleFonts.plusJakartaSans(
                                 color: Colors.white, fontWeight: FontWeight.w600)),
                       ),

@@ -7,8 +7,16 @@ import '../theme.dart';
 class AddExpenseScreen extends StatefulWidget {
   final Group group;
   final Expense? existingExpense; // If set, we are in edit mode
+  final double? initialAmount;
+  final String? initialTitle;
 
-  const AddExpenseScreen({Key? key, required this.group, this.existingExpense}) : super(key: key);
+  const AddExpenseScreen({
+    Key? key, 
+    required this.group, 
+    this.existingExpense,
+    this.initialAmount,
+    this.initialTitle,
+  }) : super(key: key);
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -62,6 +70,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         if (split > 0) {
           _selectedMemberIds.add(member.id);
         }
+      }
+    } else {
+      if (widget.initialTitle != null) {
+        _titleController.text = widget.initialTitle!;
+      }
+      if (widget.initialAmount != null) {
+        _amountController.text = widget.initialAmount!.toStringAsFixed(0);
+        // Delay recalculation to allow build to finish if needed, or just do it.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _recalculateSplits();
+        });
       }
     }
   }
@@ -208,7 +227,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           '💸 Added \'$expenseTitle\' (₹${amount.toStringAsFixed(0)}) to \'${widget.group.name}\'');
     }
 
-    Navigator.pop(context);
+    Navigator.pop(context, true);
   }
 
   @override

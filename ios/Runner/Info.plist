@@ -55,6 +55,12 @@
 	<string>Main</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required to scan UPI QR codes for payments.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Looking for local splitify users</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_splitify._tcp</string>
+	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

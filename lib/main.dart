@@ -9,6 +9,7 @@ import 'screens/auth/login_screen.dart';
 import 'services/firestore_service.dart';
 import 'models/models.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'services/geofence_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/qr_scan_screen.dart';
@@ -39,6 +40,9 @@ class _SplitifyAppState extends State<SplitifyApp> {
   @override
   void initState() {
     super.initState();
+    // Initialize Geofence service
+    GeofenceService().init();
+
     // Parse URL invite link parameters on app start
     try {
       final uri = Uri.base;
@@ -75,6 +79,14 @@ class _SplitifyAppState extends State<SplitifyApp> {
                   _selectedGroupId = groups.first.id;
                 } else if (_selectedGroupId != null && !groups.any((g) => g.id == _selectedGroupId)) {
                   _selectedGroupId = groups.isNotEmpty ? groups.first.id : null;
+                }
+                
+                // Update geofence tracking for the selected group
+                if (_selectedGroupId != null) {
+                  final groupToTrack = groups.firstWhere((g) => g.id == _selectedGroupId, orElse: () => groups.first);
+                  GeofenceService().startTracking(groupToTrack);
+                } else {
+                  GeofenceService().stopTracking();
                 }
               });
             }, onError: (err) {
@@ -119,6 +131,13 @@ class _SplitifyAppState extends State<SplitifyApp> {
   void selectGroup(String? groupId) {
     setState(() {
       _selectedGroupId = groupId;
+      
+      if (groupId != null && _groups.isNotEmpty) {
+        final groupToTrack = _groups.firstWhere((g) => g.id == groupId, orElse: () => _groups.first);
+        GeofenceService().startTracking(groupToTrack);
+      } else {
+        GeofenceService().stopTracking();
+      }
     });
   }
 
