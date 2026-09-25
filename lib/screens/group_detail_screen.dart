@@ -158,11 +158,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               _buildChip('${group.members.length} members',
                                   Colors.white.withOpacity(0.15)),
-                              const SizedBox(width: 8),
                               _buildChip(
                                 myBalance == 0
                                     ? '✓ Settled up'

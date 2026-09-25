@@ -81,10 +81,14 @@ class _SplitifyAppState extends State<SplitifyApp> {
                   _selectedGroupId = groups.isNotEmpty ? groups.first.id : null;
                 }
                 
-                // Update geofence tracking for the selected group
-                if (_selectedGroupId != null) {
-                  final groupToTrack = groups.firstWhere((g) => g.id == _selectedGroupId, orElse: () => groups.first);
-                  GeofenceService().startTracking(groupToTrack);
+                // Update geofence tracking for ALL groups
+                if (groups.isNotEmpty) {
+                  GeofenceService().startTracking(
+                    groups,
+                    onNotification: (msg) {
+                      addNotification(msg);
+                    },
+                  );
                 } else {
                   GeofenceService().stopTracking();
                 }
@@ -131,13 +135,6 @@ class _SplitifyAppState extends State<SplitifyApp> {
   void selectGroup(String? groupId) {
     setState(() {
       _selectedGroupId = groupId;
-      
-      if (groupId != null && _groups.isNotEmpty) {
-        final groupToTrack = _groups.firstWhere((g) => g.id == groupId, orElse: () => _groups.first);
-        GeofenceService().startTracking(groupToTrack);
-      } else {
-        GeofenceService().stopTracking();
-      }
     });
   }
 
@@ -283,11 +280,26 @@ class _SplitifyAppState extends State<SplitifyApp> {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({Key? key}) : super(key: key);
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  late final Stream<User?> _authStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _authStream = AuthService().authStateChanges();
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: AuthService().authStateChanges(),
+      stream: _authStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));

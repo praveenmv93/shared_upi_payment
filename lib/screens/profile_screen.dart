@@ -359,32 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 16),
 
-            // View Transaction History Button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const TransactionHistoryScreen()),
-                ),
-                icon: const Icon(Icons.history_rounded, size: 20),
-                label: Text(
-                  'Transaction History',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.accentGreen,
-                  side: const BorderSide(color: AppTheme.accentGreen, width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
+
 
             // Save Button
             SizedBox(

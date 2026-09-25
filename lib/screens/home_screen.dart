@@ -8,8 +8,8 @@ import 'group_detail_screen.dart';
 import '../theme.dart';
 import 'create_group_screen.dart';
 import 'join_group_screen.dart';
-
 import 'profile_screen.dart';
+import 'transaction_history_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -32,8 +32,14 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Add a short delay to simulate refresh / allow data streams to catch up
+          await Future.delayed(const Duration(milliseconds: 800));
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           // Hero Header
           SliverToBoxAdapter(
             child: Stack(
@@ -64,29 +70,34 @@ class HomeScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Hey ${state.currentUser?.name?.split(' ').first ?? "there"} 👋',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: AppTheme.textGrey,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Hey ${state.currentUser?.name?.split(' ').first ?? "there"} 👋',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: AppTheme.textGrey,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'splitify',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: Colors.white,
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -0.5,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'splitify',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white,
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.5,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             Row(
                               children: [
                                 // Group selector pill
@@ -195,8 +206,11 @@ class HomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 28),
 
-                        // Balance card
-                        _buildBalanceCard(context, userBalance, group),
+                        // Swipeable Balance Carousel
+                        _BalanceCarousel(
+                          state: state,
+                          currentUserId: currentUserId,
+                        ),
                         const SizedBox(height: 24),
 
                         // Quick action chips
@@ -229,6 +243,17 @@ class HomeScreen extends StatelessWidget {
                               label: 'Invite',
                               color: AppTheme.accentOrange,
                               onTap: () => _showInviteCode(context, group),
+                            ),
+                            const SizedBox(width: 12),
+                            _buildQuickAction(
+                              icon: Icons.history_rounded,
+                              label: 'History',
+                              color: AppTheme.accentPink,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const TransactionHistoryScreen()),
+                              ),
                             ),
                           ],
                         ),
@@ -293,160 +318,14 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
 
-          // Your Circles section
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Your Circles',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const CreateGroupScreen())),
-                    child: Text(
-                      '+ New',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: AppTheme.primaryLight,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final g = state.groups[index];
-                final gBalances = g.calculateBalances();
-                final myBal = gBalances[currentUserId] ?? 0.0;
-                final isSelected = g.id == groupId;
 
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-                  child: GestureDetector(
-                    onTap: () {
-                      state.selectGroup(g.id);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => GroupDetailScreen(groupId: g.id)),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppTheme.primary.withOpacity(0.12)
-                            : AppTheme.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppTheme.primary.withOpacity(0.5)
-                              : AppTheme.borderColor,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppTheme.primary,
-                                  AppTheme.accentPink,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Center(
-                              child: Text(
-                                g.name.substring(0, 1).toUpperCase(),
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 20,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  g.name,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  '${g.members.length} members · ${g.expenses.length} expenses',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: AppTheme.textGrey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                myBal == 0
-                                    ? 'Settled'
-                                    : myBal > 0
-                                        ? '+₹${myBal.toStringAsFixed(0)}'
-                                        : '-₹${(-myBal).toStringAsFixed(0)}',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: myBal == 0
-                                      ? AppTheme.textGrey
-                                      : myBal > 0
-                                          ? AppTheme.accentGreen
-                                          : AppTheme.accentPink,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Icon(Icons.chevron_right_rounded,
-                                  color: AppTheme.textMuted, size: 18),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-              childCount: state.groups.length,
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
+      ),
       ),
     );
   }
 
-  Widget _buildBalanceCard(BuildContext context, double balance, Group group) {
+  Widget _buildBalanceCard(BuildContext context, double balance, Group group, {bool isTotal = false}) {
     final isOwed = balance > 0;
     final isSettled = balance == 0;
 
@@ -477,78 +356,84 @@ class HomeScreen extends StatelessWidget {
                   : AppTheme.accentPink.withOpacity(0.3),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'YOUR BALANCE',
-                style: GoogleFonts.plusJakartaSans(
-                  color: AppTheme.textGrey,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isSettled
-                      ? AppTheme.textMuted.withOpacity(0.2)
-                      : isOwed
-                          ? AppTheme.accentGreen.withOpacity(0.15)
-                          : AppTheme.accentPink.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: Text(
-                  isSettled ? '✓ Settled' : isOwed ? '↑ Owed' : '↓ Owes',
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  isTotal ? 'TOTAL BALANCE' : 'YOUR BALANCE',
                   style: GoogleFonts.plusJakartaSans(
-                    color: isSettled
-                        ? AppTheme.textGrey
-                        : isOwed
-                            ? AppTheme.accentGreen
-                            : AppTheme.accentPink,
-                    fontSize: 11,
+                    color: AppTheme.textGrey,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isSettled
-                ? 'All square! 🎉'
-                : isOwed
-                    ? '₹${balance.toStringAsFixed(0)}'
-                    : '₹${(-balance).toStringAsFixed(0)}',
-            style: GoogleFonts.plusJakartaSans(
-              color: isSettled
-                  ? Colors.white
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isSettled
+                        ? AppTheme.textMuted.withOpacity(0.2)
+                        : isOwed
+                            ? AppTheme.accentGreen.withOpacity(0.15)
+                            : AppTheme.accentPink.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Text(
+                    isSettled ? '✓ Settled' : isOwed ? '↑ Owed' : '↓ Owes',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: isSettled
+                          ? AppTheme.textGrey
+                          : isOwed
+                              ? AppTheme.accentGreen
+                              : AppTheme.accentPink,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isSettled
+                  ? 'All square! 🎉'
                   : isOwed
-                      ? AppTheme.accentGreen
-                      : AppTheme.accentPink,
-              fontSize: 40,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.5,
+                      ? '₹${balance.toStringAsFixed(0)}'
+                      : '₹${(-balance).toStringAsFixed(0)}',
+              style: GoogleFonts.plusJakartaSans(
+                color: isSettled
+                    ? Colors.white
+                    : isOwed
+                        ? AppTheme.accentGreen
+                        : AppTheme.accentPink,
+                fontSize: 40,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -1.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            isSettled
-                ? 'No pending dues in ${group.name}'
-                : isOwed
-                    ? 'People owe you in ${group.name}'
-                    : 'You owe people in ${group.name}',
-            style: GoogleFonts.plusJakartaSans(
-              color: AppTheme.textGrey,
-              fontSize: 13,
+            const SizedBox(height: 6),
+            Text(
+              isTotal 
+                  ? (isSettled ? 'No pending dues across circles' : isOwed ? 'People owe you overall' : 'You owe people overall')
+                  : (isSettled
+                      ? 'No pending dues in ${group.name}'
+                      : isOwed
+                          ? 'People owe you in ${group.name}'
+                          : 'You owe people in ${group.name}'),
+              style: GoogleFonts.plusJakartaSans(
+                color: AppTheme.textGrey,
+                fontSize: 12,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1229,6 +1114,124 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BalanceCarousel extends StatefulWidget {
+  final AppStateScope state;
+  final String currentUserId;
+
+  const _BalanceCarousel({
+    Key? key,
+    required this.state,
+    required this.currentUserId,
+  }) : super(key: key);
+
+  @override
+  _BalanceCarouselState createState() => _BalanceCarouselState();
+}
+
+class _BalanceCarouselState extends State<_BalanceCarousel> {
+  late PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    int initialIndex = widget.state.groups.indexWhere((g) => g.id == widget.state.selectedGroupId);
+    if (initialIndex == -1) initialIndex = 0;
+    _currentPage = initialIndex + 1; // +1 because 0 is Total Summary
+    _pageController = PageController(initialPage: _currentPage, viewportFraction: 0.92);
+  }
+
+  @override
+  void didUpdateWidget(covariant _BalanceCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    int currentIndex = widget.state.groups.indexWhere((g) => g.id == widget.state.selectedGroupId);
+    if (currentIndex != -1 && _pageController.hasClients) {
+      final targetPage = currentIndex + 1;
+      if (_pageController.page?.round() != targetPage) {
+        _pageController.animateToPage(
+          targetPage,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 190,
+          child: PageView.builder(
+            controller: _pageController,
+            physics: const BouncingScrollPhysics(),
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+              if (index > 0 && widget.state.groups.isNotEmpty) {
+                widget.state.selectGroup(widget.state.groups[index - 1].id);
+              }
+            },
+            itemCount: widget.state.groups.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                // Total Summary Card
+                double totalOwed = 0.0;
+                for (var g in widget.state.groups) {
+                  totalOwed += g.calculateBalances()[widget.currentUserId] ?? 0.0;
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                  child: HomeScreen()._buildBalanceCard(
+                    context, 
+                    totalOwed, 
+                    Group(id: 'total', name: 'All Circles', description: 'Total Summary', billingDay: 1, members: [], expenses: [], homeLatitude: 0, homeLongitude: 0),
+                    isTotal: true
+                  ),
+                );
+              }
+
+              final group = widget.state.groups[index - 1];
+              final balances = group.calculateBalances();
+              final userBalance = balances[widget.currentUserId] ?? 0.0;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                child: HomeScreen()._buildBalanceCard(context, userBalance, group),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Dots indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.state.groups.length + 1,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: _currentPage == index ? 24 : 8,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _currentPage == index ? AppTheme.primaryLight : AppTheme.borderColor,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
